@@ -12,9 +12,14 @@ def _env():
     env = os.environ.copy()
     key = config.paths()["ssh_key"]
     if os.path.exists(key):
-        env["GIT_SSH_COMMAND"] = (
-            f"ssh -i {key} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-        )
+        cmd = f"ssh -i {key} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+        try:
+            if config.load_local().get("ssh_443"):
+                # This network blocks GitHub's SSH port; installer negotiated 443.
+                cmd += " -o HostName=ssh.github.com -o Port=443"
+        except (SystemExit, OSError, ValueError):
+            pass
+        env["GIT_SSH_COMMAND"] = cmd
     return env
 
 
