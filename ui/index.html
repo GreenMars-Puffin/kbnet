@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kbnet — your personal areas</title>
+<style>
+  :root {
+    --green: #2e7d4f; --green-dark: #1f5c39; --bg: #f7f8f6; --card: #ffffff;
+    --ink: #24312a; --muted: #6b7a71; --line: #e2e8e2; --home: #7c5cc4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161a17; --card: #1f2521; --ink: #e6ece7; --muted: #98a69c;
+            --line: #313a33; --green: #4caf7d; --green-dark: #74c99b; --home: #a68ae0; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 -apple-system, "Segoe UI", sans-serif;
+         color: var(--ink); background: var(--bg); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; } h1 .leaf { margin-right: 8px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .intro { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+           padding: 18px 20px; margin-bottom: 24px; }
+  .intro p { margin: 0 0 10px; } .intro p:last-child { margin: 0; }
+  .cols { display: flex; gap: 20px; flex-wrap: wrap; }
+  .col { flex: 1 1 380px; min-width: 320px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 18px 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .tree { max-height: 340px; overflow-y: auto; border: 1px solid var(--line);
+          border-radius: 8px; padding: 8px 10px; }
+  .tree label { display: flex; align-items: center; gap: 8px; padding: 3px 4px;
+                border-radius: 6px; cursor: pointer; }
+  .tree label:hover { background: var(--bg); }
+  .tree .count { color: var(--muted); font-size: 12px; margin-left: auto; }
+  input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+                       border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat { flex: 1 1 120px; border: 1px solid var(--line); border-radius: 10px;
+          padding: 10px 14px; }
+  .stat .n { font-size: 24px; font-weight: 700; }
+  .stat .l { font-size: 12px; color: var(--muted); }
+  .stat.home .n { color: var(--home); } .stat.sync .n { color: var(--green); }
+  .paths { max-height: 220px; overflow-y: auto; font: 12px/1.6 ui-monospace, monospace;
+           background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+           padding: 8px 12px; white-space: nowrap; overflow-x: auto; }
+  .confirm { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; }
+  .confirm input { margin-top: 4px; }
+  button { background: var(--green); color: #fff; border: 0; border-radius: 10px;
+           padding: 12px 22px; font: 600 15px/1 inherit; cursor: pointer; }
+  button:hover { background: var(--green-dark); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .saved { color: var(--green); font-weight: 600; margin-left: 12px; }
+  .assure { color: var(--muted); font-size: 13px; margin-top: 18px; }
+  code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+         padding: 1px 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="leaf">🌿</span>kbnet</h1>
+  <p class="sub">Your knowledge base, connected to the GreenMars KB — with your personal notes kept home.</p>
+
+  <div class="intro">
+    <p>kbnet shares the business knowledge you're already building — meeting notes,
+       projects, clients, ideas — with the GreenMars company KB, so the whole
+       company brain gets smarter together.</p>
+    <p><strong>Its most important job is keeping your personal notes at home.</strong>
+       Mark your personal areas below. Anything that matches stays on this machine,
+       always — it never syncs and is never shared.</p>
+    <p>GreenMars has no interest in personal information. If something personal ever
+       slips into the company KB, just say so — it will be treated as private,
+       removed, and we'll fix the sorting that let it through.</p>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <div class="card">
+        <h2>1 · Your personal folders</h2>
+        <p class="hint">Check every folder that holds personal material. Checked folders
+           (and everything inside them) stay home.</p>
+        <div class="tree" id="tree"></div>
+      </div>
+      <div class="card">
+        <h2>2 · Personal tags &amp; markers</h2>
+        <p class="hint">Notes tagged with any of these — or with matching frontmatter —
+           stay home too, wherever they live. For one personal paragraph inside a
+           business note, wrap it in a <code>&gt; [!personal]</code> callout and just
+           that section stays home.</p>
+        <label style="font-size:13px;color:var(--muted)">Tags (comma-separated)</label>
+        <input type="text" id="tags" placeholder="personal, family, journal">
+        <div style="height:10px"></div>
+        <label style="font-size:13px;color:var(--muted)">Frontmatter markers</label>
+        <input type="text" id="fm" placeholder="scope: personal, personal: true">
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h2>3 · Check the split</h2>
+        <p class="hint">Live preview of how your vault sorts right now.</p>
+        <div class="stat-row">
+          <div class="stat home"><div class="n" id="nHome">–</div>
+            <div class="l">stay home (personal)</div></div>
+          <div class="stat sync"><div class="n" id="nSync">–</div>
+            <div class="l">sync to the GreenMars KB <span id="syncFolders"></span></div></div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">
+          Staying home:</div>
+        <div class="paths" id="paths"><em>loading…</em></div>
+        <div class="confirm">
+          <input type="checkbox" id="confirm">
+          <label for="confirm">I've marked my personal areas — everything else in this
+            vault is company knowledge that syncs to the GreenMars KB.</label>
+        </div>
+        <button id="save" disabled>Save my personal areas</button>
+        <span class="saved" id="savedMsg"></span>
+        <p class="assure">You can change this any time with <code>kbnet ui</code>.
+           After every sync, kbnet leaves a plain-English report at
+           <code>kbnet/last-export-report.md</code> in your vault showing exactly
+           what stayed home and what was shared.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let state = null;
+let debounceTimer = null;
+
+function currentDraft() {
+  const folders = [...document.querySelectorAll('#tree input:checked')]
+    .map(cb => cb.dataset.path);
+  const tags = document.getElementById('tags').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const fm = document.getElementById('fm').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+  return { personal_folders: folders, personal_tags: tags, personal_frontmatter: fm };
+}
+
+function renderPreview(p) {
+  document.getElementById('nHome').textContent = p.personal_count;
+  document.getElementById('nSync').textContent = p.synced_count;
+  document.getElementById('syncFolders').textContent =
+    p.sync_folders.length ? 'from ' + p.sync_folders.map(f => f + '/').join(', ') : '';
+  const box = document.getElementById('paths');
+  if (!p.personal_count) {
+    box.innerHTML = '<em>nothing yet — check your personal folders on the left</em>';
+    return;
+  }
+  let html = p.personal_paths.map(x => x.replace(/&/g,'&amp;').replace(/</g,'&lt;')).join('<br>');
+  if (p.personal_truncated) html += `<br><em>…and ${p.personal_truncated} more</em>`;
+  box.innerHTML = html;
+}
+
+function refreshPreview() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    const res = await fetch('/api/preview', { method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(currentDraft()) });
+    renderPreview(await res.json());
+    document.getElementById('savedMsg').textContent = '';
+  }, 250);
+}
+
+function renderTree(folders, personalFolders) {
+  const tree = document.getElementById('tree');
+  const chosen = new Set(personalFolders.map(f => f.replace(/\/+$/,'')));
+  tree.innerHTML = '';
+  for (const f of folders) {
+    const depth = f.path.split('/').length - 1;
+    const label = document.createElement('label');
+    label.style.paddingLeft = (4 + depth * 18) + 'px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.path = f.path;
+    cb.checked = chosen.has(f.path);
+    cb.addEventListener('change', refreshPreview);
+    const name = document.createElement('span');
+    name.textContent = '📁 ' + f.path.split('/').pop();
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = f.notes + ' notes';
+    label.append(cb, name, count);
+    tree.appendChild(label);
+  }
+}
+
+async function init() {
+  const res = await fetch('/api/state');
+  state = await res.json();
+  renderTree(state.folders, state.manifest.personal_folders || []);
+  document.getElementById('tags').value = (state.manifest.personal_tags || []).join(', ');
+  document.getElementById('fm').value = (state.manifest.personal_frontmatter || []).join(', ');
+  renderPreview(state.preview);
+  document.getElementById('tags').addEventListener('input', refreshPreview);
+  document.getElementById('fm').addEventListener('input', refreshPreview);
+  document.getElementById('confirm').addEventListener('change', e => {
+    document.getElementById('save').disabled = !e.target.checked;
+  });
+  document.getElementById('save').addEventListener('click', async () => {
+    const res = await fetch('/api/save', { method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(currentDraft()) });
+    const data = await res.json();
+    if (data.ok) {
+      renderPreview(data.preview);
+      document.getElementById('savedMsg').textContent = state.setup_mode
+        ? 'Saved — you\'re all set! You can close this window. 🌿'
+        : 'Saved 🌿';
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>
