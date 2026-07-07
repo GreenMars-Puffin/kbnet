@@ -40,6 +40,21 @@ def _self_heal_exchange(cfg, exchange, errors, log):
         ["git", "clone", "--quiet", correct, exchange],
         env=gitutil._env(), capture_output=True, text=True,
     )
+    if result.returncode != 0 and not cfg.get("ssh_443"):
+        # SSH port may be blocked on this network — retry via port 443.
+        env443 = gitutil._env()
+        env443["GIT_SSH_COMMAND"] = (
+            env443.get("GIT_SSH_COMMAND", "ssh")
+            + " -o HostName=ssh.github.com -o Port=443"
+        )
+        retry = subprocess.run(
+            ["git", "clone", "--quiet", correct, exchange],
+            env=env443, capture_output=True, text=True,
+        )
+        if retry.returncode == 0:
+            log("  SSH port blocked — switched to port 443")
+            cfg["ssh_443"] = True
+            result = retry
     if result.returncode != 0:
         os.rename(quarantine, exchange)  # roll back, retry next run
         errors.append(f"exchange re-point failed: {result.stderr.strip()[:200]}")
