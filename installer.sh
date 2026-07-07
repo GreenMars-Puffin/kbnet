@@ -24,10 +24,19 @@ PEER="${KBNET_PEER:-$(ask "Your kbnet name (first name, lowercase — e.g. casey
 VAULT="${KBNET_VAULT:-$(ask "Path to your vault" "$HOME/vault")}"
 VAULT="${VAULT/#\~/$HOME}"
 [ -d "$VAULT" ] || { say "Hmm, $VAULT doesn't exist — check the path and re-run."; exit 1; }
-EXCHANGE_URL="${KBNET_EXCHANGE_URL:-$(ask "Exchange repo URL (Chris gives you this)" "git@github.com:GreenMars-Puffin/kbnet-$PEER.git")}"
-# Trim whitespace + stray punctuation that rides along when the URL is
-# copy-pasted out of an email sentence.
-EXCHANGE_URL="$(printf '%s' "$EXCHANGE_URL" | sed -E 's/[[:space:],.;]+$//')"
+while :; do
+  EXCHANGE_URL="${KBNET_EXCHANGE_URL:-$(ask "Exchange repo URL (Chris gives you this)" "git@github.com:GreenMars-Puffin/kbnet-$PEER.git")}"
+  # Trim whitespace + stray punctuation that rides along when the URL is
+  # copy-pasted out of an email sentence.
+  EXCHANGE_URL="$(printf '%s' "$EXCHANGE_URL" | sed -E 's/[[:space:],.;]+$//')"
+  case "$EXCHANGE_URL" in
+    *"GreenMars-Puffin/kbnet.git"|*"GreenMars-Puffin/kbnet")
+      say "That's the kbnet tool repo — your exchange repo is the one named kbnet-$PEER."
+      unset KBNET_EXCHANGE_URL
+      continue ;;
+  esac
+  break
+done
 
 mkdir -p "$KBNET_HOME"
 
@@ -73,6 +82,18 @@ until try_remote "$SSH_USE"; do
 done
 if [ ! -d "$KBNET_HOME/exchange/.git" ]; then
   GIT_SSH_COMMAND="$SSH_USE" git clone --quiet "$EXCHANGE_URL" "$KBNET_HOME/exchange"
+fi
+# Sanity: a real exchange repo has control/config.json and grants write access.
+if [ ! -f "$KBNET_HOME/exchange/control/config.json" ]; then
+  say "Hmm — that repo doesn't look like a kbnet exchange (no control/config.json)."
+  say "Double-check the URL with Chris, then re-run this installer."
+  exit 1
+fi
+if ! GIT_SSH_COMMAND="$SSH_USE" git -C "$KBNET_HOME/exchange" push --dry-run --quiet origin main 2>"$ERRFILE"; then
+  say "Connected, but the key can't write to that repo. GitHub said:"
+  say "  $(tail -1 "$ERRFILE" 2>/dev/null)"
+  say "Send Chris the line above, then re-run this installer."
+  exit 1
 fi
 
 python3 - "$PEER" "$VAULT" "$EXCHANGE_URL" "$KBNET_HOME" "$SSH443_FLAG" <<'PY'

@@ -3,9 +3,53 @@ snapshot/heartbeat → local report → commit & push."""
 import datetime
 import json
 import os
+import subprocess
 import time
 
 from . import config, gitutil, manifest, report, sanitize, scan, snapshot, sources
+
+EXCHANGE_URL_TEMPLATE = os.environ.get(
+    "KBNET_EXCHANGE_URL_TEMPLATE", "git@github.com:GreenMars-Puffin/kbnet-{peer}.git"
+)
+
+
+def _norm_url(url):
+    url = url.strip().rstrip("/")
+    return url[:-4] if url.endswith(".git") else url
+
+
+def _self_heal_exchange(cfg, exchange, errors, log):
+    """If the exchange clone's origin is the TOOL repo (a bad URL entered at
+    install), re-point it to the conventional exchange repo. Hands-free repair
+    for the wrong-repo foot-gun."""
+    origin = gitutil.git(exchange, "remote", "get-url", "origin", check=False)
+    tool_origin = gitutil.git(
+        config.paths()["tool"], "remote", "get-url", "origin", check=False
+    )
+    if not origin or not tool_origin or _norm_url(origin) != _norm_url(tool_origin):
+        return
+    correct = EXCHANGE_URL_TEMPLATE.format(peer=cfg["peer"])
+    log(f"  exchange clone points at the tool repo (bad URL at install) — "
+        f"re-pointing to {correct}")
+    quarantine = exchange + ".misconfigured"
+    if os.path.isdir(quarantine):
+        import shutil
+        shutil.rmtree(quarantine, ignore_errors=True)
+    os.rename(exchange, quarantine)
+    result = subprocess.run(
+        ["git", "clone", "--quiet", correct, exchange],
+        env=gitutil._env(), capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        os.rename(quarantine, exchange)  # roll back, retry next run
+        errors.append(f"exchange re-point failed: {result.stderr.strip()[:200]}")
+        return
+    cfg["exchange_url"] = correct
+    persist = {k: v for k, v in cfg.items() if k != "exchange_path"}
+    with open(config.paths()["config"], "w", encoding="utf-8") as f:
+        json.dump(persist, f, indent=2)
+        f.write("\n")
+    log("  exchange repaired — config updated")
 
 
 def run_cycle(log=print):
@@ -22,6 +66,7 @@ def run_cycle(log=print):
         raise SystemExit(f"kbnet: exchange repo not found at {exchange} — re-run the installer")
 
     log(f"kbnet run · peer={peer}")
+    _self_heal_exchange(cfg, exchange, errors, log)
     gitutil.sync_exchange(exchange, errors)
     control = config.load_control(exchange)
 

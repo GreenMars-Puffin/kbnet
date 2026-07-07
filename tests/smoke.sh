@@ -124,4 +124,29 @@ git clone --quiet "$BARE" "$CHECK3" 2>/dev/null
 grep -q "New paragraph" "$CHECK3/outbox/kb/wiki/projects/acme.md" || fail "edit didn't sync"
 [ ! -e "$CHECK3/outbox/kb/wiki/notes/flip.md" ] || fail "note flipped to personal was not withdrawn"
 
+# --- self-heal: exchange mistakenly cloned from the tool repo ------------------
+export KBNET_HOME="$TMP/home2"
+mkdir -p "$KBNET_HOME"
+TOOLBARE="$TMP/toolrepo.git"
+git init --bare --quiet -b main "$TOOLBARE"
+TSEED="$TMP/tseed"
+git clone --quiet "$TOOLBARE" "$TSEED" 2>/dev/null
+printf 'tool\n' > "$TSEED/marker.txt"
+git -C "$TSEED" add -A && git -C "$TSEED" -c user.name=t -c user.email=t@t commit --quiet -m tool
+git -C "$TSEED" push --quiet origin main
+git clone --quiet "$TOOLBARE" "$KBNET_HOME/tool" 2>/dev/null
+git clone --quiet "$TOOLBARE" "$KBNET_HOME/exchange" 2>/dev/null   # the foot-gun
+cat > "$KBNET_HOME/config.json" <<EOF
+{"peer": "testpeer", "vault_path": "$VAULT", "exchange_url": "$TOOLBARE"}
+EOF
+export KBNET_EXCHANGE_URL_TEMPLATE="$BARE"
+python3 "$ROOT/kbnet.py" run
+ORIGIN=$(git -C "$KBNET_HOME/exchange" remote get-url origin)
+[ "$ORIGIN" = "$BARE" ] || fail "self-heal didn't re-point exchange (origin=$ORIGIN)"
+grep -q "\"exchange_url\": \"$BARE\"" "$KBNET_HOME/config.json" || fail "self-heal didn't fix config"
+[ -d "$KBNET_HOME/exchange.misconfigured" ] || fail "misconfigured clone not quarantined"
+CHECK4="$TMP/check4"; git clone --quiet "$BARE" "$CHECK4" 2>/dev/null
+grep -q '"peer": "testpeer"' "$CHECK4/outbox/health.json" || fail "healed run didn't push heartbeat"
+unset KBNET_EXCHANGE_URL_TEMPLATE
+
 echo "PASS — all kbnet smoke checks green"
