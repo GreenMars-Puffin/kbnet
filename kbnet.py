@@ -5,6 +5,7 @@ Commands:
   run      one sync cycle (what the hourly launchd job runs)
   ui       open the personal-areas setup page   [--port N] [--no-open] [--setup]
   status   show the last run's health summary
+  doctor   print full diagnostics (for sending to Chris when something's off)
   version  print the tool revision
 """
 import json
@@ -52,6 +53,17 @@ def main(argv):
             print(f"requests:  {', '.join(health['requests_fulfilled'])}")
         for e in health.get("errors", []):
             print(f"issue:     {e}")
+        try:
+            with open(os.path.join(config.paths()["home"], "last-run-errors.json"),
+                      encoding="utf-8") as f:
+                data = json.load(f)
+            for e in data.get("errors", []):
+                print(f"issue:     {e} (persisted {data.get('ts', '?')})")
+        except (OSError, ValueError):
+            pass
+    elif cmd == "doctor":
+        from kbnetlib import doctor
+        doctor.run()
     elif cmd == "version":
         print(gitutil.tool_rev())
     else:

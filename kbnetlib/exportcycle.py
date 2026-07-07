@@ -61,9 +61,23 @@ def run_cycle(log=print):
     report.write_report(vault, peer, export_stats, personal_paths, request_metas, errors)
 
     committed = gitutil.commit_push(exchange, peer, f"kbnet export {peer} {_today()}", errors)
+    # Push failures land in `errors` after health.json is written, so persist
+    # them locally where `status` / `doctor` can see them next time.
+    _write_last_errors(errors)
     log(f"  {'pushed' if committed and not errors else 'done'} in {health['duration_s']}s"
         + (f" · {len(errors)} issue(s) noted" if errors else ""))
     return health
+
+
+def _write_last_errors(errors):
+    try:
+        path = os.path.join(config.paths()["home"], "last-run-errors.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"ts": datetime.datetime.now().isoformat(timespec="seconds"),
+                       "errors": errors}, f, indent=2)
+            f.write("\n")
+    except OSError:
+        pass
 
 
 def _export_kb(notes, exchange, m, control):
