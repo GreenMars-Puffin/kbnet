@@ -9,7 +9,7 @@ INTERVAL="${KBNET_INTERVAL:-3600}"
 
 bold() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 say()  { printf '%s\n' "$*"; }
-ask()  { local v; read -r -p "$1${2:+ [$2]}: " v; printf '%s' "${v:-${2:-}}"; }
+ask()  { local v; read -r -p "$1${2:+ [$2]}: " v </dev/tty; printf '%s' "${v:-${2:-}}"; }
 
 bold "🌿 kbnet setup"
 say "kbnet connects your knowledge base to the GreenMars company KB — and"
@@ -55,7 +55,7 @@ bold "→ Send this key to Chris so he can connect your exchange repo:"
 echo
 cat "$KEY.pub"
 echo
-read -r -p "Press Enter once Chris says the key is added… " _
+read -r -p "Press Enter once Chris says the key is added… " _ </dev/tty
 
 SSH_BASE="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 SSH_443="$SSH_BASE -o HostName=ssh.github.com -o Port=443"
@@ -78,7 +78,7 @@ until try_remote "$SSH_USE"; do
     *"Repository not found"*) say "  ↳ double-check the exchange repo URL — watch for typos or stray punctuation." ;;
     *"Permission denied"*)    say "  ↳ the key may not be connected yet — ping Chris with the line above." ;;
   esac
-  read -r -p "Press Enter to try again (Ctrl-C to bail)… " _
+  read -r -p "Press Enter to try again (Ctrl-C to bail)… " _ </dev/tty
 done
 if [ ! -d "$KBNET_HOME/exchange/.git" ]; then
   GIT_SSH_COMMAND="$SSH_USE" git clone --quiet "$EXCHANGE_URL" "$KBNET_HOME/exchange"
