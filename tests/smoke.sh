@@ -149,4 +149,13 @@ CHECK4="$TMP/check4"; git clone --quiet "$BARE" "$CHECK4" 2>/dev/null
 grep -q '"peer": "testpeer"' "$CHECK4/outbox/health.json" || fail "healed run didn't push heartbeat"
 unset KBNET_EXCHANGE_URL_TEMPLATE
 
+# --- installer prompts must read /dev/tty, not stdin (the curl|bash bug) -------
+# Runs installer.sh under a pty with poison on stdin; passes only if the vault
+# prompt reads the tty (reaches the deploy-key step) instead of eating stdin.
+IVAULT="$TMP/ivault"; mkdir -p "$IVAULT"
+python3 "$ROOT/tests/interactive_install.py" \
+  "$ROOT/installer.sh" "$ROOT" "$IVAULT" "$TMP/ihome" \
+  || fail "installer prompts read from stdin — curl|bash would break (see above)"
+echo "  ✓ installer prompts read /dev/tty under piped stdin"
+
 echo "PASS — all kbnet smoke checks green"
