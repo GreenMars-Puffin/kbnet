@@ -103,13 +103,18 @@ def run_cycle(log=print):
     manifest.classify(notes, m)
     personal_paths = sorted(n.relpath for n in notes if n.personal)
 
-    export_stats = _export_kb(notes, exchange, m, control)
+    export_stats, exported = _export_kb(notes, exchange, m, control)
     log(f"  export: {export_stats['synced']} in sync "
         f"({export_stats['updated']} updated, {export_stats['removed']} removed), "
         f"{len(personal_paths)} personal kept home")
 
     fulfilled = sources.fulfill_requests(vault, notes, other_files, exchange, m, control, log)
     request_metas = _read_metas(exchange, fulfilled)
+
+    purge_notices = report.resolve_purge_notices(exchange, exported)
+    if purge_notices:
+        log(f"  the company KB deleted {len(purge_notices)} shared file(s) as personal — "
+            "listed in your sync report")
 
     snap = snapshot.build_snapshot(peer, notes, m, m_hash)
     snapshot.write_json(os.path.join(exchange, "outbox", "schema-snapshot.json"), snap)
@@ -118,7 +123,8 @@ def run_cycle(log=print):
     )
     snapshot.write_json(os.path.join(exchange, "outbox", "health.json"), health)
 
-    report.write_report(vault, peer, export_stats, personal_paths, request_metas, errors)
+    report.write_report(vault, peer, export_stats, personal_paths, request_metas, errors,
+                        purge_notices)
 
     committed = gitutil.commit_push(exchange, peer, f"kbnet export {peer} {_today()}", errors)
     # Push failures land in `errors` after health.json is written, so persist
@@ -141,6 +147,7 @@ def _write_last_errors(errors):
 
 
 def _export_kb(notes, exchange, m, control):
+    """Mirror shareable notes into outbox/kb. Returns (stats, {relpath: exported text})."""
     out_dir = os.path.join(exchange, "outbox", "kb")
     extra_callouts = control.get("extra_personal_callouts", [])
     sync_folders = m.get("sync_folders", [])
@@ -190,7 +197,7 @@ def _export_kb(notes, exchange, m, control):
         "removed": removed,
         "personal_excluded": personal_excluded,
         "callouts_stripped": callouts_stripped,
-    }
+    }, expected
 
 
 def _read_metas(exchange, fulfilled):

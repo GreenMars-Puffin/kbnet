@@ -10,9 +10,15 @@ setup you mark your personal areas — folders, tags, frontmatter — using the
 same categories you already organize by. Anything that matches stays on your
 machine, always: it never syncs, and it's never shared.
 
-GreenMars has no interest in personal information. If something personal ever
-slips into the company KB, say so — it will be treated as private, removed,
-and we'll fix the sorting that let it through.
+GreenMars has no interest in personal information. The company KB checks what
+arrives and deletes anything that looks personal, and your sync report names
+the file so you can mark it. If something personal ever slips through anyway,
+say so — it will be treated as private, removed, and we'll fix the sorting
+that let it through.
+
+"Personal" means your life outside work: health, family, personal finances.
+Work notes about people (personnel matters, reviews, coaching, hiring) and your
+opinions about work are business, even when they're sensitive.
 
 ## Setup (once, ~10 minutes)
 

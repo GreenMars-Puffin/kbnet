@@ -124,6 +124,31 @@ git clone --quiet "$BARE" "$CHECK3" 2>/dev/null
 grep -q "New paragraph" "$CHECK3/outbox/kb/wiki/projects/acme.md" || fail "edit didn't sync"
 [ ! -e "$CHECK3/outbox/kb/wiki/notes/flip.md" ] || fail "note flipped to personal was not withdrawn"
 
+# --- hub purge notices: listed in the local report while still shared --------
+# The hub deleted acme.md as personal (matching digest → listed) and flip.md
+# (now personal, stale digest → not listed).
+git -C "$SEED" pull --quiet --rebase origin main
+mkdir -p "$SEED/control/notices"
+python3 - "$CHECK3/outbox/kb/wiki/projects/acme.md" "$SEED/control/notices/personal-purge.json" <<'PY'
+import hashlib, json, sys
+sha = lambda s: hashlib.sha256(s.encode()).hexdigest()[:12]
+text = open(sys.argv[1], encoding="utf-8").read()
+items = [
+    {"id": sha("kb:wiki/projects/acme.md"), "digest": sha(text), "verdict": "mixed",
+     "date": "2026-09-15", "kind": "kb"},
+    {"id": sha("kb:wiki/notes/flip.md"), "digest": "000000000000", "verdict": "personal",
+     "date": "2026-09-15", "kind": "kb"},
+]
+json.dump({"items": items}, open(sys.argv[2], "w"), indent=2)
+PY
+git -C "$SEED" add -A
+git -C "$SEED" -c user.name=seed -c user.email=seed@test commit --quiet -m "hub purge notice"
+git -C "$SEED" push --quiet origin main
+python3 "$ROOT/kbnet.py" run
+NOTICED=$(awk '/^## Deleted by the company KB as personal/{f=1;next} /^## /{f=0} f' "$VAULT/kbnet/last-export-report.md")
+echo "$NOTICED" | grep -q "wiki/projects/acme.md" || fail "hub purge notice not listed in the local report"
+echo "$NOTICED" | grep -q "flip.md" && fail "stale or already-personal purge notice listed"
+
 # --- self-heal: exchange mistakenly cloned from the tool repo ------------------
 export KBNET_HOME="$TMP/home2"
 mkdir -p "$KBNET_HOME"
