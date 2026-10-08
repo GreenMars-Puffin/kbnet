@@ -116,10 +116,19 @@ EOF
 chmod +x "$KBNET_HOME/bin/kbnet"
 
 bold "→ Scheduling kbnet (runs about once an hour)"
-LOG="$HOME/Library/Logs/kbnet.log"
-PLIST="$HOME/Library/LaunchAgents/com.greenmars.kbnet.plist"
+# A second vault on the same Mac (KBNET_HOME other than ~/.kbnet) gets its own
+# launchd job and log, so it never replaces the first vault's job.
+if [ "$KBNET_HOME" = "$HOME/.kbnet" ]; then
+  LABEL="com.greenmars.kbnet"
+  LOG="$HOME/Library/Logs/kbnet.log"
+else
+  LABEL="com.greenmars.kbnet.$PEER"
+  LOG="$HOME/Library/Logs/kbnet-$PEER.log"
+fi
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 mkdir -p "$HOME/Library/Logs" "$HOME/Library/LaunchAgents"
-sed -e "s|__KBNET_HOME__|$KBNET_HOME|g" \
+sed -e "s|__LABEL__|$LABEL|g" \
+    -e "s|__KBNET_HOME__|$KBNET_HOME|g" \
     -e "s|__LOG__|$LOG|g" \
     -e "s|__INTERVAL__|$INTERVAL|g" \
     "$KBNET_HOME/tool/launchd/com.greenmars.kbnet.plist.template" > "$PLIST"
